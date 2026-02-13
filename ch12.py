@@ -37,16 +37,14 @@ def setup_logs():
     logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
 
-    return logger   
-
 
 def format_docs(docs):
     """Utility: fold retrieved Documents into a single context string."""
     return "".join(d.page_content for d in docs)
 
 
-def build_rag_chain(vectorstore : Chroma , model_name: str = "gpt-4o-mini", temperature: float = 0.0):
-    """
+def build_rag_chain(vectorstore, model_name: str = "gpt-5.1", temperature: float = 0.0):
+    """ 
     Build a Retrieval-Augmented Generation chain using LCEL (LangChain Expression Language).
     Replaces the legacy `RetrievalQA` chain.
     """
@@ -64,7 +62,7 @@ def build_rag_chain(vectorstore : Chroma , model_name: str = "gpt-4o-mini", temp
     # It is passed to both the retriever (to get {context}) and to the prompt as {question}.
     rag_chain = (
         {
-            "context": retriever | RunnableLambda(format_docs),
+            "context": retriever | RunnableLambda(format_docs), 
             "question": RunnablePassthrough(),
         }
         | prompt
@@ -74,14 +72,14 @@ def build_rag_chain(vectorstore : Chroma , model_name: str = "gpt-4o-mini", temp
     return rag_chain
 
 
-def main( logger = logging.getLogger()  ):
+def main():
     st.title("LangChain Crash Course – RAG (LCEL) Example")
 
     os.environ["OPENAI_API_KEY"] = apikey    
 
     # --- LLM & embeddings setup ---
     # NOTE: gpt-3.5-turbo is deprecated; use a current small model like gpt-4o-mini (or your Azure OpenAI deployment).
-    model_name = st.sidebar.text_input("OpenAI chat model", value="gpt-4o-mini")
+    model_name = st.sidebar.text_input("OpenAI chat model", value="gpt-5.1")
     temperature = st.sidebar.number_input("Temperature", min_value=0.0, max_value=1.0, value=0.0, step=0.1)
 
     # --- Load and split documents ---
@@ -112,6 +110,10 @@ def main( logger = logging.getLogger()  ):
     query = st.text_input("Posez votre question sur le document :")
 
     if query:
+
+        if "history" not in st.session_state:
+            st.session_state.history = []
+
         if rag_chain is None:
             st.error("Impossible de répondre : aucun corpus n'est indexé (fichier source introuvable).")
         else:
@@ -120,11 +122,15 @@ def main( logger = logging.getLogger()  ):
                     answer = rag_chain.invoke(query)
                     st.write("**Réponse :**")
                     st.write(answer)
+                    st.session_state.history.append(query)        
+                    # Display the conversation history
+                    for line in st.session_state.history: 
+                        st.sidebar.write(line)
                 except Exception as e:
                     st.exception(e)
 
 
 if __name__ == "__main__":
-    logger = setup_logs()
+    setup_logs()
     main()      
 
